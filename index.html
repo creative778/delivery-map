@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Delivery Map System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<style>
+body{font-family:Arial;margin:0;background:#f4f4f4;}
+#map{height:400px;}
+.container{padding:15px;}
+input,select,button{padding:8px;margin:5px;width:95%;}
+button{background:#222;color:white;border:none;cursor:pointer;}
+.card{background:white;padding:10px;margin:10px 0;border-radius:8px;}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>Delivery Map System</h2>
+
+<input type="text" id="number" placeholder="Customer Number">
+<input type="text" id="address" placeholder="Home Address">
+<select id="status">
+<option>Pending</option>
+<option>Delivered</option>
+<option>Returned</option>
+</select>
+<input type="text" id="note" placeholder="Note (Optional)">
+<button onclick="saveData()">Save Location</button>
+
+<hr>
+
+<input type="text" id="searchNumber" placeholder="Search by Number">
+<button onclick="searchData()">Search</button>
+
+<div id="result"></div>
+
+</div>
+
+<div id="map"></div>
+
+<script>
+
+let map = L.map('map').setView([23.8103, 90.4125], 12);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+attribution:'© OpenStreetMap'
+}).addTo(map);
+
+let marker;
+
+map.on('click', function(e){
+if(marker) map.removeLayer(marker);
+marker = L.marker(e.latlng).addTo(map);
+});
+
+function saveData(){
+let number = document.getElementById("number").value;
+let address = document.getElementById("address").value;
+let status = document.getElementById("status").value;
+let note = document.getElementById("note").value;
+
+if(!marker){
+alert("Select location on map!");
+return;
+}
+
+let latlng = marker.getLatLng();
+
+let data = JSON.parse(localStorage.getItem("deliveries")) || {};
+
+if(data[number]){
+alert("⚠ Number already exists!");
+return;
+}
+
+data[number] = {
+address:address,
+status:status,
+note:note,
+lat:latlng.lat,
+lng:latlng.lng,
+count:1
+};
+
+localStorage.setItem("deliveries", JSON.stringify(data));
+alert("Saved Successfully!");
+}
+
+function searchData(){
+let number = document.getElementById("searchNumber").value;
+let data = JSON.parse(localStorage.getItem("deliveries")) || {};
+
+if(!data[number]){
+document.getElementById("result").innerHTML = "No Data Found";
+return;
+}
+
+let info = data[number];
+
+map.setView([info.lat, info.lng], 15);
+
+if(marker) map.removeLayer(marker);
+marker = L.marker([info.lat, info.lng]).addTo(map);
+
+navigator.geolocation.getCurrentPosition(function(pos){
+let distance = getDistance(pos.coords.latitude,pos.coords.longitude,info.lat,info.lng);
+document.getElementById("result").innerHTML =
+"<div class='card'>Address: "+info.address+
+"<br>Status: "+info.status+
+"<br>Note: "+info.note+
+"<br>Delivery Count: "+info.count+
+"<br>Distance: "+distance.toFixed(2)+" km</div>";
+});
+}
+
+function getDistance(lat1, lon1, lat2, lon2){
+let R = 6371;
+let dLat = (lat2-lat1) * Math.PI/180;
+let dLon = (lon2-lon1) * Math.PI/180;
+let a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+Math.sin(dLon/2) * Math.sin(dLon/2);
+let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+return R * c;
+}
+
+</script>
+
+</body>
+</html>
